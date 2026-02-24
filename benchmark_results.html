@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMMSY-SSSP Live Benchmarks</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Suppress potential browser extension injected styles (e.g. screenshot glows) */
+        html,
+        body,
+        #__next,
+        .antigravity-injected-glow {
+            box-shadow: none !important;
+            outline: none !important;
+            border: none !important;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0b0f19;
+            color: #f8fafc;
+            overflow-x: hidden;
+            margin: 0 !important;
+            padding: 2rem !important;
+            /* Move padding to body instead of relying on Tailwind classes if needed, though Tailwind works fine */
+        }
+
+        .glass {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #38bdf8 0%, #ec4899 50%, #f472b6 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        canvas {
+            filter: drop-shadow(0 0 30px rgba(56, 189, 248, 0.1));
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-12">
+    <div id="dashboard-main" class="max-w-6xl mx-auto">
+        <header class="mb-12 text-center">
+            <h1 class="text-5xl font-bold mb-4 gradient-text">DMMSY Algorithm Performance</h1>
+            <p class="text-slate-400 text-xl font-light">Breaking the $O(m \log n)$ Barrier — Deterministic SSSP @ STOC
+                '25</p>
+        </header>
+
+        <div class="flex justify-center mb-8 gap-4">
+            <div class="glass px-6 py-4 flex items-center space-x-4">
+                <span class="text-sm text-slate-500 uppercase tracking-widest">Data Source:</span>
+                <span id="sourceIndicator" class="text-sky-400 font-bold">Embedded CSV</span>
+                <label
+                    class="cursor-pointer bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded text-xs transition-colors">
+                    Upload CSV
+                    <input type="file" id="csvUpload" class="hidden" accept=".csv">
+                </label>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="glass p-6 text-center border-t-4 border-slate-500/30">
+                <p class="text-slate-500 text-xs uppercase tracking-[0.2em] mb-2">Max Nodes</p>
+                <p id="statNodes" class="text-3xl font-bold text-white">-</p>
+            </div>
+            <div class="glass p-6 text-center border-t-4 border-emerald-500/30">
+                <p class="text-slate-500 text-xs uppercase tracking-[0.2em] mb-2">Best Speedup</p>
+                <p id="statSpeedup" class="text-3xl font-bold text-emerald-400">-</p>
+            </div>
+            <div class="glass p-6 text-center border-t-4 border-purple-500/30">
+                <p class="text-slate-500 text-xs uppercase tracking-[0.2em] mb-2">Avg Speedup</p>
+                <p id="statAvgSpeedup" class="text-3xl font-bold text-purple-400">-</p>
+            </div>
+            <div class="glass p-6 text-center border-t-4 border-slate-500/30">
+                <p class="text-slate-500 text-xs uppercase tracking-[0.2em] mb-2">Complexity</p>
+                <p class="text-3xl font-bold text-slate-400">O(m log<sup>2/3</sup> n)</p>
+            </div>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="glass p-8 mb-8">
+            <div class="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+                <h2 class="text-2xl font-semibold">Performance Scaling</h2>
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center"><span class="w-3 h-3 bg-slate-400 rounded-full mr-2"></span> Dijkstra
+                    </div>
+                    <div class="flex items-center"><span class="w-3 h-3 bg-pink-400 rounded-full mr-2"></span> DMMSY
+                        (Res)</div>
+                    <div class="flex items-center"><span class="w-3 h-3 bg-sky-400 rounded-full mr-2"></span> DMMSY
+                        (Opt)</div>
+                </div>
+            </div>
+            <div style="height: 480px;">
+                <canvas id="benchmarkChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Raw Data Table -->
+        <div class="glass p-8">
+            <h3 class="text-xl font-semibold mb-6 uppercase tracking-widest text-slate-500 text-center">Benchmarks
+                Details</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-slate-500 border-b border-slate-800">
+                            <th class="pb-4 font-normal">Nodes (n)</th>
+                            <th class="pb-4 font-normal text-right">Edges (m)</th>
+                            <th class="pb-4 font-normal text-right text-slate-400">Dijkstra (ms)</th>
+                            <th class="pb-4 font-normal text-right text-pink-400">DMMSY Res (ms)</th>
+                            <th class="pb-4 font-normal text-right text-sky-400">DMMSY Opt (ms)</th>
+                            <th class="pb-4 font-normal text-right">Speedup (Opt)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable" class="divide-y divide-slate-800/50"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load data without CORS restrictions using a JS wrapper --!>
+    <script src="benchmark_data.js"></script>
+
+    <script>
+        // Aggressive DOM cleanser: Destroys any external extension overlays/glows dynamically injected into body
+        setInterval(() => {
+            Array.from(document.body.children).forEach(child => {
+                const tag = child.tagName.toLowerCase();
+                if (child.id !== 'dashboard-main' && tag !== 'script' && tag !== 'style') {
+                    child.remove();
+                }
+            });
+        }, 100);
+
+        let chartInstance = null;
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n').slice(1);
+            return lines.map(line => {
+                const parts = line.split(',').map(Number);
+                const [n, m, dij, res, opt] = parts;
+                return { n, m, dij, res, opt, spd: dij / opt };
+            }).filter(d => !isNaN(d.n));
+        }
+
+        function updateUI(data, sourceName) {
+            document.getElementById('sourceIndicator').innerText = sourceName;
+
+            // Stats
+            const maxN = data[data.length - 1].n;
+            const speedups = data.map(d => d.spd).filter(s => isFinite(s));
+            const maxSpd = speedups.length > 0 ? Math.max(...speedups) : 0;
+            const avgSpd = speedups.length > 0 ? speedups.reduce((a, b) => a + b, 0) / speedups.length : 0;
+
+            document.getElementById('statNodes').innerText = maxN.toLocaleString();
+            document.getElementById('statSpeedup').innerText = maxSpd.toFixed(2) + 'x';
+            document.getElementById('statAvgSpeedup').innerText = avgSpd.toFixed(2) + 'x';
+
+            // Table
+            document.getElementById('dataTable').innerHTML = data.map(d => `
+                <tr class="hover:bg-slate-800/40 transition-colors">
+                    <td class="py-4 font-medium text-slate-200">${d.n.toLocaleString()}</td>
+                    <td class="py-4 text-right text-slate-500">${d.m.toLocaleString()}</td>
+                    <td class="py-4 text-right text-slate-400 font-mono">${d.dij.toFixed(4)}</td>
+                    <td class="py-4 text-right text-pink-400 font-mono">${(d.res || 0).toFixed(4)}</td>
+                    <td class="py-4 text-right text-sky-400 font-mono font-bold">${d.opt.toFixed(4)}</td>
+                    <td class="py-4 text-right">
+                        <span class="px-2 py-1 rounded-md text-xs font-bold ${d.spd >= 1 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">
+                            ${(d.spd || 0).toFixed(2)}x
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Chart
+            const ctx = document.getElementById('benchmarkChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.n.toLocaleString()),
+                    datasets: [
+                        {
+                            label: 'Dijkstra',
+                            data: data.map(d => d.dij),
+                            borderColor: '#94a3b8',
+                            backgroundColor: 'rgba(148, 163, 184, 0.05)',
+                            fill: false,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 3
+                        },
+                        {
+                            label: 'DMMSY Opt',
+                            data: data.map(d => d.opt),
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.05)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 3,
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'DMMSY Res',
+                            data: data.map(d => d.res || null),
+                            borderColor: '#ec4899',
+                            backgroundColor: 'rgba(236, 72, 153, 0.05)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 3,
+                            pointRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'logarithmic', grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#64748b' } },
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // 1. Try Loading via JS Script File (Local CORS Workaround)
+        if (typeof BENCHMARK_CSV_DATA !== 'undefined' && BENCHMARK_CSV_DATA.trim() !== '') {
+            updateUI(parseCSV(BENCHMARK_CSV_DATA), 'benchmark_data.js');
+        } else {
+            // 2. Try Fetch (If hosted on a Local Server / GitHub Pages)
+            fetch('benchmark_data.csv')
+                .then(r => {
+                    if (!r.ok) throw new Error("Fetch failed");
+                    return r.text();
+                })
+                .then(text => updateUI(parseCSV(text), 'benchmark_data.csv'))
+                .catch(() => {
+                    document.getElementById('statNodes').innerText = "ERROR";
+                    document.getElementById('statSpeedup').innerText = "DATA";
+                    document.getElementById('sourceIndicator').innerText = "No Data Found. Upload CSV manually.";
+                });
+        }
+
+        // 3. User Upload
+        document.getElementById('csvUpload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (re) => updateUI(parseCSV(re.target.result), file.name);
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+
+</html>
