@@ -163,6 +163,3 @@ The benchmark methodology, however, conflates a real but modest algorithmic impr
 
 For anyone choosing an SSSP algorithm for a practical application: a well-written Dijkstra with a good heap and workspace reuse is about as fast as you will get on graphs that fit on a single machine. The DMMSY algorithm may show advantages on extremely large or specifically structured graphs, but this has not been demonstrated in the benchmarks analysed here.
 
-## Fancy results
-![Results](results.png)
-
