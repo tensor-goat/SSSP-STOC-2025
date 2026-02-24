@@ -162,3 +162,7 @@ The Duan et al. STOC 2025 result is a genuine theoretical advance — the first 
 The benchmark methodology, however, conflates a real but modest algorithmic improvement (log^{2/3} n vs log n, ~2.7× at 1M nodes in theory, ~1× in practice) with a large systems-engineering asymmetry (workspace reuse vs per-call allocation, ~500×). The combined result is attributed entirely to the algorithm, which is inaccurate.
 
 For anyone choosing an SSSP algorithm for a practical application: a well-written Dijkstra with a good heap and workspace reuse is about as fast as you will get on graphs that fit on a single machine. The DMMSY algorithm may show advantages on extremely large or specifically structured graphs, but this has not been demonstrated in the benchmarks analysed here.
+
+## Fancy results
+![Results](results.png)
+
